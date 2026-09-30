@@ -4,15 +4,77 @@ from __future__ import annotations
 
 import csv
 import io
+import sqlite3
 import time
 from datetime import datetime
 
 import streamlit as st
 
-from traffic_store import DB_PATH, Monitor, csv_safe_target, open_db, read_stats, source_label
+from traffic_store import (
+    DB_PATH,
+    Monitor,
+    clear_history,
+    csv_safe_target,
+    fetch_connections,
+    load_connection_settings,
+    open_db,
+    read_stats,
+    save_connection_settings,
+    source_label,
+)
 
 
 st.set_page_config(page_title="Clash 域名流量统计", page_icon="📊", layout="wide")
+
+try:
+    saved_url, saved_secret = load_connection_settings()
+except (OSError, ValueError) as exc:
+    saved_url = saved_secret = ""
+    st.sidebar.warning(f"读取连接设置失败：{exc}")
+
+with st.sidebar:
+    st.header("⚙️ Clash 连接设置")
+    with st.form("connection_settings"):
+        api_url = st.text_input(
+            "外部控制地址",
+            value=saved_url,
+            placeholder="http://127.0.0.1:9097",
+            help="填写 Clash Verge Rev 的外部控制地址；留空则尝试本机 Unix Socket。",
+        )
+        secret = st.text_input(
+            "API 密钥 Secret",
+            type="password",
+            help="留空会保留已保存的密钥；要更换密钥，请输入新值。",
+        )
+        clear_secret = st.checkbox("清除已保存的密钥")
+        submitted = st.form_submit_button("保存并连接", type="primary")
+    st.caption("密钥只保存在本机用户配置目录，不会写入 Git 项目或回显在输入框。")
+
+    if submitted:
+        try:
+            effective_secret = "" if clear_secret else secret or saved_secret
+            save_connection_settings(api_url, effective_secret)
+            try:
+                fetch_connections(api_url.strip(), effective_secret)
+            except Exception as exc:
+                st.warning(f"设置已保存，暂未连上 Clash：{exc}")
+            else:
+                st.success("设置已保存，Clash 连接正常。")
+        except (OSError, ValueError) as exc:
+            st.error(f"保存失败：{exc}")
+
+    st.divider()
+    st.subheader("数据管理")
+    with st.popover("清除历史数据", use_container_width=True):
+        st.warning("这会永久清除本机已记录的流量。下一次采样会以当前连接流量为新起点。")
+        if st.button("确认清除历史数据", type="primary"):
+            try:
+                with open_db(DB_PATH) as db:
+                    clear_history(db)
+            except (OSError, sqlite3.Error) as exc:
+                st.error(f"清除失败：{exc}")
+            else:
+                st.success("历史数据已清除，开始重新统计。")
 
 
 @st.cache_resource
@@ -23,6 +85,15 @@ def get_monitor() -> Monitor:
 monitor = get_monitor()
 st.title("📊 Clash 域名 / 目标地址流量")
 st.caption("滚动最近 24 小时 · 按连接流量增量统计 · 采样间隔 1 秒")
+
+
+def traffic_size(byte_count: int) -> str:
+    mib = byte_count / (1024 * 1024)
+    if mib >= 1024:
+        return f"{mib / 1024:,.2f} GiB"
+    if mib >= 100:
+        return f"{mib:,.0f} MiB"
+    return f"{mib:,.2f} MiB"
 
 
 @st.fragment(run_every="5s")
@@ -46,9 +117,9 @@ def dashboard() -> None:
     mib = 1024 * 1024
     col1, col2, col3, col4 = st.columns(4)
     col1.metric("目标数", len(rows))
-    col2.metric("下载", f"{total_down / mib:,.2f} MiB")
-    col3.metric("上传", f"{total_up / mib:,.2f} MiB")
-    col4.metric("合计", f"{(total_down + total_up) / mib:,.2f} MiB")
+    col2.metric("下载", traffic_size(total_down))
+    col3.metric("上传", traffic_size(total_up))
+    col4.metric("合计", traffic_size(total_down + total_up))
 
     if not rows:
         st.info("尚无已采样的流量。保持此程序运行并通过 Clash 浏览网站后再查看。")

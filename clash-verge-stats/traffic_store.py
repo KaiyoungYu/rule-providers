@@ -8,6 +8,8 @@ import os
 import re
 import socket
 import sqlite3
+import sys
+import tempfile
 import threading
 import time
 from pathlib import Path
@@ -17,6 +19,72 @@ from urllib.parse import urlsplit
 POLL_SECONDS = 1
 WINDOW_SECONDS = 24 * 60 * 60
 DB_PATH = Path(__file__).with_name("traffic.sqlite3")
+
+
+def settings_path() -> Path:
+    if sys.platform == "darwin":
+        base = Path.home() / "Library/Application Support"
+    elif os.name == "nt":
+        base = Path(os.environ.get("APPDATA", str(Path.home() / "AppData/Roaming")))
+    else:
+        base = Path(os.environ.get("XDG_CONFIG_HOME", str(Path.home() / ".config")))
+    return base / "clash-traffic-dashboard/settings.json"
+
+
+def load_connection_settings(path: Path | None = None) -> tuple[str, str]:
+    """Use saved page settings, then legacy environment variables."""
+    settings_file = path or settings_path()
+    try:
+        data = json.loads(settings_file.read_text(encoding="utf-8"))
+    except FileNotFoundError:
+        return os.getenv("CLASH_API_URL", ""), os.getenv("CLASH_SECRET", "")
+    if not isinstance(data, dict) or not isinstance(data.get("api_url"), str) or not isinstance(data.get("secret"), str):
+        raise ValueError("连接设置文件格式无效，请在页面上重新保存")
+    return data["api_url"], data["secret"]
+
+
+def validate_api_url(api_url: str) -> str:
+    url = api_url.strip()
+    if not url:
+        return url  # Empty means auto-detect the local Unix Socket.
+    try:
+        parsed = urlsplit(url)
+        port = parsed.port
+    except ValueError as exc:
+        raise ValueError("控制地址格式无效") from exc
+    if parsed.scheme not in {"http", "https"} or not parsed.hostname or port == 0:
+        raise ValueError("控制地址需为 http(s)://主机:端口")
+    if parsed.username or parsed.password:
+        raise ValueError("请在密钥框填写密钥，不要放入控制地址")
+    if parsed.fragment:
+        raise ValueError("控制地址不能包含 # 片段")
+    return url
+
+
+def save_connection_settings(api_url: str, secret: str, path: Path | None = None) -> None:
+    """Atomically save credentials outside the repository with private permissions."""
+    url = validate_api_url(api_url)
+    settings_file = path or settings_path()
+    settings_file.parent.mkdir(mode=0o700, parents=True, exist_ok=True)
+    if os.name == "posix":
+        settings_file.parent.chmod(0o700)
+    temp_path: Path | None = None
+    try:
+        with tempfile.NamedTemporaryFile(
+            mode="w", encoding="utf-8", dir=settings_file.parent, prefix=".settings-", delete=False
+        ) as temporary:
+            temp_path = Path(temporary.name)
+            json.dump({"api_url": url, "secret": secret}, temporary, ensure_ascii=False)
+            temporary.flush()
+            os.fsync(temporary.fileno())
+        os.replace(temp_path, settings_file)
+        if os.name == "posix":
+            settings_file.chmod(0o600)
+    finally:
+        if temp_path is not None:
+            temp_path.unlink(missing_ok=True)
+
+
 VERGE_CONFIG = (
     Path.home()
     / "Library/Application Support/io.github.clash-verge-rev.clash-verge-rev/clash-verge.yaml"
@@ -49,7 +117,11 @@ def configured_socket() -> str | None:
 
 
 def source_label() -> str:
-    if url := os.getenv("CLASH_API_URL"):
+    try:
+        url, _ = load_connection_settings()
+    except (OSError, ValueError):
+        return "连接设置文件无法读取"
+    if url:
         try:
             parsed = urlsplit(url)
         except ValueError:
@@ -68,14 +140,14 @@ def source_label() -> str:
     return f"Unix Socket: {path}" if path else "未找到 Clash 控制接口"
 
 
-def fetch_connections() -> list[dict]:
-    url = os.getenv("CLASH_API_URL")
+def fetch_connections(api_url: str | None = None, secret: str | None = None) -> list[dict]:
+    if api_url is None or secret is None:
+        saved_url, saved_secret = load_connection_settings()
+        api_url = saved_url if api_url is None else api_url
+        secret = saved_secret if secret is None else secret
+    url = validate_api_url(api_url)
     if url:
         parsed = urlsplit(url)
-        if parsed.scheme not in {"http", "https"} or not parsed.hostname:
-            raise ValueError("CLASH_API_URL 需要是 http(s)://主机:端口")
-        if parsed.username or parsed.password:
-            raise ValueError("请通过 CLASH_SECRET 设置密钥，不要放入 CLASH_API_URL")
         cls = http.client.HTTPSConnection if parsed.scheme == "https" else http.client.HTTPConnection
         conn = cls(parsed.hostname, parsed.port, timeout=2)
         path = parsed.path.rstrip("/")
@@ -89,7 +161,6 @@ def fetch_connections() -> list[dict]:
         conn = UnixHTTPConnection(unix_path)
         endpoint = "/connections"
 
-    secret = os.getenv("CLASH_SECRET", "")
     headers = {"Authorization": f"Bearer {secret}"} if secret else {}
     try:
         conn.request("GET", endpoint, headers=headers)
@@ -151,12 +222,15 @@ def csv_safe_target(target: str) -> str:
     return target
 
 
-def record_sample(db: sqlite3.Connection, connections: list[dict], now: int) -> None:
+def record_sample(
+    db: sqlite3.Connection, connections: list[dict], now: int, force_baseline: bool = False
+) -> None:
     """Store counter differences, baselining after startup or a sampling gap."""
     bucket = now // 60 * 60
-    last_sample = db.execute("SELECT value FROM meta WHERE key='last_sample'").fetchone()
-    baseline = last_sample is None or now - int(last_sample[0]) > 10 or now < int(last_sample[0])
     with db:
+        db.execute("BEGIN IMMEDIATE")
+        last_sample = db.execute("SELECT value FROM meta WHERE key='last_sample'").fetchone()
+        baseline = force_baseline or last_sample is None or now - int(last_sample[0]) > 10 or now < int(last_sample[0])
         for item in connections:
             if not isinstance(item, dict):
                 continue
@@ -198,6 +272,15 @@ def record_sample(db: sqlite3.Connection, connections: list[dict], now: int) -> 
         db.execute("DELETE FROM connection_state WHERE last_seen < ?", (now - 2 * WINDOW_SECONDS,))
 
 
+def clear_history(db: sqlite3.Connection) -> None:
+    """Clear collected traffic and baseline the next sample from current counters."""
+    with db:
+        db.execute("BEGIN IMMEDIATE")
+        db.execute("DELETE FROM traffic_minute")
+        db.execute("DELETE FROM connection_state")
+        db.execute("DELETE FROM meta WHERE key='last_sample'")
+
+
 def read_stats(db: sqlite3.Connection, now: int) -> list[tuple[str, int, int]]:
     cutoff = now // 60 * 60 - WINDOW_SECONDS + 60
     return db.execute(
@@ -215,6 +298,7 @@ class Monitor:
         self.last_error: str | None = None
         self._lock = threading.Lock()
         self._stop = threading.Event()
+        self._last_config: tuple[str, str] | None = None
         self._thread = threading.Thread(target=self._run, daemon=True, name="clash-traffic-monitor")
         self._thread.start()
 
@@ -225,9 +309,11 @@ class Monitor:
                 try:
                     if db is None:
                         db = open_db(self.path)
-                    connections = fetch_connections()
+                    config = load_connection_settings()
+                    connections = fetch_connections(*config)
                     now = int(time.time())
-                    record_sample(db, connections, now)
+                    record_sample(db, connections, now, force_baseline=config != self._last_config)
+                    self._last_config = config
                     with self._lock:
                         self.last_success = time.time()
                         self.last_error = None
