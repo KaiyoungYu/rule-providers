@@ -20,3 +20,4 @@ payload:
   - 'DOMAIN-SUFFIX,126.com'
   - 'DOMAIN-SUFFIX,127.net'
   - 'DOMAIN-SUFFIX,bilibili.com'
+  - 'DOMAIN-SUFFIX,bilivideo.com'
