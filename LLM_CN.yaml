@@ -22,3 +22,4 @@ payload:
   - 'DOMAIN-SUFFIX,bilibili.com'
   - 'DOMAIN-SUFFIX,bilivideo.com'
   - 'DOMAIN-SUFFIX,upos-hz-mirrorakam.akamaized.net'
+  - 'DOMAIN-SUFFIX,hdslb.com'
