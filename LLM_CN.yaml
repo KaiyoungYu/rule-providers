@@ -1,7 +1,5 @@
 payload:
   - 'DOMAIN-SUFFIX,lianqiai.cn'
-  - 'DOMAIN-SUFFIX,zijieapi.com'
-  - 'DOMAIN-SUFFIX,feishu.cn'
   - 'DOMAIN-SUFFIX,tencent.com'
   - 'DOMAIN-SUFFIX,qianwen.com'
   - 'DOMAIN-SUFFIX,doubao.com'
@@ -24,3 +22,14 @@ payload:
   - 'DOMAIN-SUFFIX,upos-hz-mirrorakam.akamaized.net'
   - 'DOMAIN-SUFFIX,hdslb.com'
   - 'DOMAIN-SUFFIX,aliyun.com'
+  # 飞书核心域名
+  - 'DOMAIN-SUFFIX,feishu.cn'
+  - 'DOMAIN-SUFFIX,feishucdn.com'
+  - 'DOMAIN-SUFFIX,feishupkg.com'
+  - 'DOMAIN-SUFFIX,larkoffice.com'
+  # 字节跳动图片与静态资源 CDN
+  - 'DOMAIN-SUFFIX,byteimg.com'
+  - 'DOMAIN-SUFFIX,bytedance.com'
+  - 'DOMAIN-SUFFIX,bytednsdoc.com'
+  - 'DOMAIN-SUFFIX,pstatp.com'
+  - 'DOMAIN-SUFFIX,zijieapi.com'
