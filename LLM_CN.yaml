@@ -6,9 +6,7 @@ payload:
   - 'DOMAIN-SUFFIX,qq.com'
   - 'DOMAIN-SUFFIX,workbuddy.com'
   - 'DOMAIN-SUFFIX,codebuddy.com'
-  - 'DOMAIN-SUFFIX,cn-hangzhou.log.aliyuncs.com'
   - 'DOMAIN-SUFFIX,myqcloud.com'
-  - 'DOMAIN-SUFFIX,weixin.qq.com'
   - 'DOMAIN-SUFFIX,galileotelemetry.tencent.com'
   - 'DOMAIN-SUFFIX,xiaohongshu.com'
   - 'DOMAIN-SUFFIX,zhipuai.cn'
@@ -17,11 +15,14 @@ payload:
   - 'DOMAIN-SUFFIX,taobao.com'
   - 'DOMAIN-SUFFIX,126.com'
   - 'DOMAIN-SUFFIX,127.net'
+  # bilibili
   - 'DOMAIN-SUFFIX,bilibili.com'
   - 'DOMAIN-SUFFIX,bilivideo.com'
   - 'DOMAIN-SUFFIX,upos-hz-mirrorakam.akamaized.net'
   - 'DOMAIN-SUFFIX,hdslb.com'
+  # aliyun
   - 'DOMAIN-SUFFIX,aliyun.com'
+  - 'DOMAIN-SUFFIX,cn-hangzhou.log.aliyuncs.com'
   # 飞书核心域名
   - 'DOMAIN-SUFFIX,feishu.cn'
   - 'DOMAIN-SUFFIX,feishucdn.com'
@@ -33,7 +34,17 @@ payload:
   - 'DOMAIN-SUFFIX,bytednsdoc.com'
   - 'DOMAIN-SUFFIX,pstatp.com'
   - 'DOMAIN-SUFFIX,zijieapi.com'
+  # zhipu
   - 'DOMAIN-SUFFIX,bigmodel.cn'
   - 'DOMAIN-SUFFIX,zcode.z.ai'
+  # kimi
   - 'DOMAIN-SUFFIX,kimi.com'
   - 'DOMAIN-SUFFIX,moonshot.cn'
+  # weixin
+  - 'DOMAIN-SUFFIX,wechat.com'
+  - 'DOMAIN-SUFFIX,weixin.qq.com'
+  - 'DOMAIN-SUFFIX,wx.qq.com'
+  - 'DOMAIN-SUFFIX,qpic.cn'
+  - 'DOMAIN-SUFFIX,qlogo.cn'
+  - 'DOMAIN-SUFFIX,servicewechat.com'
+  - 'DOMAIN-SUFFIX,tenpay.com'
