@@ -1,6 +1,6 @@
 payload:
-  - 'IP-CIDR,192.168.0.0/16'
-  - 'IP-CIDR,224.0.0.0/24'
+  - 'IP-CIDR,192.168.0.0/16,no-resolve'
+  - 'IP-CIDR,224.0.0.0/24,no-resolve'
   - 'DOMAIN-SUFFIX,local'
   - 'DOMAIN-SUFFIX,lan'
   - 'DOMAIN-SUFFIX,lianqiai.cn'
