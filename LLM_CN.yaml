@@ -13,8 +13,7 @@ payload:
   - 'DOMAIN-SUFFIX,qwenwork.cn'
   - 'DOMAIN-SUFFIX,wps.cn'
   - 'DOMAIN-SUFFIX,taobao.com'
-  - 'DOMAIN-SUFFIX,126.com'
-  - 'DOMAIN-SUFFIX,127.net'
+  - 'DOMAIN-SUFFIX,dida365.com'
   # bilibili
   - 'DOMAIN-SUFFIX,bilibili.com'
   - 'DOMAIN-SUFFIX,bilivideo.com'
@@ -48,3 +47,8 @@ payload:
   - 'DOMAIN-SUFFIX,qlogo.cn'
   - 'DOMAIN-SUFFIX,servicewechat.com'
   - 'DOMAIN-SUFFIX,tenpay.com'
+  # netease
+  - 'DOMAIN-SUFFIX,netease.com'
+  - 'DOMAIN-SUFFIX,126.com'
+  - 'DOMAIN-SUFFIX,127.net'
+  - 'DOMAIN-SUFFIX,163.net'
