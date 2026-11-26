@@ -58,3 +58,8 @@ payload:
   - 'DOMAIN-SUFFIX,163.net'
   # baidu
   - 'DOMAIN-SUFFIX,baidu.com'
+  - 'DOMAIN-SUFFIX,bdstatic.com'
+  - 'DOMAIN-SUFFIX,bdimg.com'
+  - 'DOMAIN-SUFFIX,bdstimg.com'
+  - 'DOMAIN-SUFFIX,bcebos.com'
+  - 'DOMAIN-SUFFIX,baidupcs.com'
